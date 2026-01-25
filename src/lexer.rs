@@ -4,7 +4,7 @@ pub struct Lexer {
     input: String,
     position: usize,
     read_position: usize,
-    ch: u8,
+    ch: char,
 }
 
 impl Lexer {
@@ -14,7 +14,7 @@ impl Lexer {
             input,
             position: 0,
             read_position: 0,
-            ch: 0,
+            ch: '\0',
         };
         l.read_char();
         l
@@ -23,20 +23,26 @@ impl Lexer {
     // Read next character of source code into `ch`
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
-            self.ch = 0;
+            self.ch = '\0';
         } else {
-            self.ch = self.input.as_bytes()[self.read_position];
+            self.ch = self.input[self.read_position..]
+                .chars()
+                .next()
+                .expect("valid unicode character");
         }
         self.position = self.read_position;
-        self.read_position += 1;
+        self.read_position += self.ch.len_utf8();
     }
 
     // Peek next character
-    fn peek_char(&self) -> u8 {
+    fn peek_char(&self) -> char {
         if self.read_position >= self.input.len() {
-            0
+            '\0'
         } else {
-            self.input.as_bytes()[self.read_position]
+            self.input[self.read_position..]
+                .chars()
+                .next()
+                .expect("valid unicode character")
         }
     }
 
@@ -54,7 +60,7 @@ impl Lexer {
     fn read_number(&mut self) -> String {
         let position = self.position;
 
-        while is_digit(char::from(self.ch)) {
+        while is_digit(self.ch) {
             self.read_char();
         }
 
@@ -63,7 +69,7 @@ impl Lexer {
 
     // Skips whitespace
     fn skip_whitespace(&mut self) {
-        while self.ch == b' ' || self.ch == b'\t' || self.ch == b'\n' || self.ch == b'\r' {
+        while self.ch.is_whitespace() {
             self.read_char();
         }
     }
@@ -72,101 +78,101 @@ impl Lexer {
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
         let token = match self.ch {
-            b'=' => {
-                if self.peek_char() == b'=' {
+            '=' => {
+                if self.peek_char() == '=' {
                     let ch = self.ch;
                     self.read_char();
 
                     Token {
                         token_type: TokenType::Eq,
-                        literal: char::from(ch).to_string() + &char::from(self.ch).to_string(),
+                        literal: ch.to_string() + &self.ch.to_string(),
                     }
                 } else {
                     Token {
                         token_type: TokenType::Assign,
-                        literal: char::from(self.ch).to_string(),
+                        literal: self.ch.to_string(),
                     }
                 }
             }
 
-            b'+' => Token {
+            '+' => Token {
                 token_type: TokenType::Plus,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            b'-' => Token {
+            '-' => Token {
                 token_type: TokenType::Minus,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            b'!' => {
-                if self.peek_char() == b'=' {
+            '!' => {
+                if self.peek_char() == '=' {
                     let ch = self.ch;
                     self.read_char();
 
                     Token {
                         token_type: TokenType::NotEq,
-                        literal: char::from(ch).to_string() + &char::from(self.ch).to_string(),
+                        literal: ch.to_string() + &self.ch.to_string(),
                     }
                 } else {
                     Token {
                         token_type: TokenType::Bang,
-                        literal: char::from(self.ch).to_string(),
+                        literal: self.ch.to_string(),
                     }
                 }
             }
 
-            b'/' => Token {
+            '/' => Token {
                 token_type: TokenType::Slash,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            b'*' => Token {
+            '*' => Token {
                 token_type: TokenType::Asterisk,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            b'<' => Token {
+            '<' => Token {
                 token_type: TokenType::Lt,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            b'>' => Token {
+            '>' => Token {
                 token_type: TokenType::Gt,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            b';' => Token {
+            ';' => Token {
                 token_type: TokenType::Semicolon,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            b',' => Token {
+            ',' => Token {
                 token_type: TokenType::Comma,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            b'(' => Token {
+            '(' => Token {
                 token_type: TokenType::Lparen,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            b')' => Token {
+            ')' => Token {
                 token_type: TokenType::Rparen,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            b'{' => Token {
+            '{' => Token {
                 token_type: TokenType::Lbrace,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            b'}' => Token {
+            '}' => Token {
                 token_type: TokenType::Rbrace,
-                literal: char::from(self.ch).to_string(),
+                literal: self.ch.to_string(),
             },
 
-            0 => Token {
+            '\0' => Token {
                 token_type: TokenType::EOF,
                 literal: String::from(""),
             },
@@ -193,7 +199,7 @@ impl Lexer {
                 } else {
                     Token {
                         token_type: TokenType::Illegal,
-                        literal: char::from(self.ch).to_string(),
+                        literal: self.ch.to_string(),
                     }
                 }
             }
@@ -204,7 +210,7 @@ impl Lexer {
 }
 
 fn is_letter(c: char) -> bool {
-    c.is_ascii_alphabetic() || c == '_'
+    c.is_alphabetic() || c == '_'
 }
 
 fn is_digit(c: char) -> bool {
