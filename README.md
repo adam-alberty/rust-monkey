@@ -1,0 +1,3 @@
+## Ideas
+
+- ASCII -> Unicode
