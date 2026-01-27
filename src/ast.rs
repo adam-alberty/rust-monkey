@@ -55,7 +55,7 @@ impl fmt::Display for Program {
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
-    pub value: Option<Expression>, // TODO remove Option
+    pub value: Expression,
 }
 
 impl fmt::Display for LetStatement {
@@ -63,37 +63,30 @@ impl fmt::Display for LetStatement {
         write!(
             f,
             "{} {} = {};",
-            self.token.literal,
-            self.name.value,
-            self.value
-                .as_ref()
-                .map_or(String::new(), |expr| expr.to_string())
-        ) // TODO add let statement expression
+            self.token.literal, self.name.value, self.value
+        )
     }
 }
 
 pub struct ReturnStatement {
     pub token: Token,
-    pub return_value: Option<Expression>, // TODO remove
+    pub return_value: Expression,
 }
 
 impl fmt::Display for ReturnStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ;", self.token.literal) // TODO add return value expression
+        write!(f, "{} {};", self.token.literal, self.return_value)
     }
 }
 
 pub struct ExpressionStatement {
     pub token: Token,
-    pub return_value: Option<Expression>, // TODO remove
+    pub expression: Expression,
 }
 
 impl fmt::Display for ExpressionStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.return_value {
-            Some(exp) => write!(f, "{}", exp),
-            _ => Ok(()),
-        }
+        write!(f, "{}", self.expression)
     }
 }
 
@@ -119,13 +112,13 @@ mod tests {
                         literal: "myVar".to_string(),
                     },
                 },
-                value: Some(Expression::Ident(Identifier {
+                value: Expression::Ident(Identifier {
                     token: Token {
                         token_type: TokenType::Ident,
                         literal: "anotherVar".to_string(),
                     },
                     value: "anotherVar".to_string(),
-                })),
+                }),
             })],
         };
 
