@@ -22,6 +22,7 @@ pub enum Expression {
     Ident(Identifier),
     IntegerLiteral(IntegerLiteral),
     Prefix(Prefix),
+    Infix(Infix),
 }
 
 impl fmt::Display for Expression {
@@ -30,6 +31,9 @@ impl fmt::Display for Expression {
             Expression::Ident(ident) => write!(f, "{}", ident.value),
             Expression::IntegerLiteral(int_literal) => write!(f, "{}", int_literal.value),
             Expression::Prefix(prefix) => write!(f, "({}{})", prefix.operator, prefix.right),
+            Expression::Infix(infix) => {
+                write!(f, "({} {} {})", infix.left, infix.operator, infix.right)
+            }
         }
     }
 }
@@ -48,6 +52,13 @@ pub struct IntegerLiteral {
 
 pub struct Prefix {
     pub token: Token,
+    pub operator: String,
+    pub right: Box<Expression>,
+}
+
+pub struct Infix {
+    pub token: Token,
+    pub left: Box<Expression>,
     pub operator: String,
     pub right: Box<Expression>,
 }
