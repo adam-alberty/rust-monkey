@@ -21,6 +21,7 @@ impl fmt::Display for Statement {
 pub enum Expression {
     Ident(Identifier),
     IntegerLiteral(IntegerLiteral),
+    Boolean(Boolean),
     Prefix(Prefix),
     Infix(Infix),
 }
@@ -33,6 +34,9 @@ impl fmt::Display for Expression {
             Expression::Prefix(prefix) => write!(f, "({}{})", prefix.operator, prefix.right),
             Expression::Infix(infix) => {
                 write!(f, "({} {} {})", infix.left, infix.operator, infix.right)
+            }
+            Expression::Boolean(bool) => {
+                write!(f, "{}", bool.value)
             }
         }
     }
@@ -48,6 +52,11 @@ pub struct Identifier {
 pub struct IntegerLiteral {
     pub token: Token,
     pub value: i64,
+}
+
+pub struct Boolean {
+    pub token: Token,
+    pub value: bool,
 }
 
 pub struct Prefix {

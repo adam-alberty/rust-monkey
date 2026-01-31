@@ -59,6 +59,9 @@ impl Parser {
         parser.register_prefix(TokenType::Bang, Parser::parse_prefix_expression);
         parser.register_prefix(TokenType::Minus, Parser::parse_prefix_expression);
 
+        parser.register_prefix(TokenType::True, Parser::parse_boolean);
+        parser.register_prefix(TokenType::False, Parser::parse_boolean);
+
         parser.register_infix(TokenType::Plus, Parser::parse_infix_expression);
         parser.register_infix(TokenType::Minus, Parser::parse_infix_expression);
         parser.register_infix(TokenType::Slash, Parser::parse_infix_expression);
@@ -221,6 +224,13 @@ impl Parser {
             ));
             None
         }
+    }
+
+    fn parse_boolean(&mut self) -> Option<ast::Expression> {
+        Some(ast::Expression::Boolean(ast::Boolean {
+            token: self.cur_token.clone(),
+            value: self.cur_token_is(TokenType::True),
+        }))
     }
 
     fn parse_prefix_expression(&mut self) -> Option<ast::Expression> {
@@ -451,6 +461,32 @@ return 993322;
     }
 
     #[test]
+    fn test_boolean_literal_expression() {
+        let input = String::from("true;");
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse_program();
+
+        check_parser_errors(&parser);
+        check_number_of_statements(&program, 1);
+
+        match &program.statements[0] {
+            ast::Statement::Expression(expr_statement) => match &expr_statement.expression {
+                ast::Expression::Boolean(bool) => {
+                    assert_eq!(true, bool.value, "boolean value not true");
+                    assert_eq!(
+                        "true", bool.token.literal,
+                        "literal value not `true`. got={}",
+                        bool.token.literal
+                    );
+                }
+                _ => panic!("expression not a boolean"),
+            },
+            _ => panic!("not an expression statement"),
+        };
+    }
+
+    #[test]
     fn test_parsing_prefix_expressions() {
         struct PrefixTest {
             input: &'static str,
@@ -580,15 +616,6 @@ return 993322;
         }
     }
 
-    fn test_integer_literal(expr: &ast::Expression, value: i64) {
-        match expr {
-            ast::Expression::IntegerLiteral(integer_literal) => {
-                assert_eq!(value, integer_literal.value)
-            }
-            _ => panic!("not an integer literal. got={}", expr),
-        }
-    }
-
     #[test]
     fn test_operator_precedence_parsing() {
         struct Test {
@@ -653,6 +680,25 @@ return 993322;
 
             check_parser_errors(&parser);
             assert_eq!(test.expected, program.to_string());
+        }
+    }
+
+    fn test_identifier(expr: &ast::Expression, value: String) {
+        match expr {
+            ast::Expression::Ident(ident) => {
+                assert_eq!(value, ident.value);
+                assert_eq!(value, ident.token.literal);
+            }
+            _ => panic!("not an identifier. got={}", expr),
+        }
+    }
+
+    fn test_integer_literal(expr: &ast::Expression, value: i64) {
+        match expr {
+            ast::Expression::IntegerLiteral(integer_literal) => {
+                assert_eq!(value, integer_literal.value);
+            }
+            _ => panic!("not an integer literal. got={}", expr),
         }
     }
 }
