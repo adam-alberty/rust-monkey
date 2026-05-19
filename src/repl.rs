@@ -2,7 +2,8 @@ use std::io::{self, Write};
 
 use crate::{lexer::Lexer, token::TokenType};
 
-pub fn start() {
+/// Runs the REPL.
+pub fn run() {
     loop {
         print!(">> ");
         io::stdout().flush().unwrap();

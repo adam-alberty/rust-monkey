@@ -8,7 +8,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    // Construct new lexer that takes in the source code
+    /// Constructs new lexer from the source.
     pub fn new(input: String) -> Self {
         let mut l = Self {
             input,
@@ -20,7 +20,7 @@ impl Lexer {
         l
     }
 
-    // Get next token from the source code
+    /// Gets next token from the source code.
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
         let token = match self.ch {
@@ -124,24 +124,19 @@ impl Lexer {
             },
 
             _ => {
-                // Letter
-                if is_letter(char::from(self.ch)) {
+                if is_letter(self.ch) {
                     let literal = self.read_identifier();
                     let token_type = lookup_ident(&literal);
                     return Token {
                         literal,
                         token_type,
                     };
-
-                // Digit
-                } else if is_digit(char::from(self.ch)) {
+                } else if is_digit(self.ch) {
                     let literal = self.read_number();
                     return Token {
                         token_type: TokenType::Int,
                         literal,
                     };
-
-                // Illegal
                 } else {
                     Token {
                         token_type: TokenType::Illegal,
@@ -154,7 +149,7 @@ impl Lexer {
         token
     }
 
-    // Read next character of source code into `ch`
+    /// Reads next character of source code.
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
             self.ch = '\0';
@@ -168,7 +163,7 @@ impl Lexer {
         self.read_position += self.ch.len_utf8();
     }
 
-    // Peek next character
+    /// Peeks next character.
     fn peek_char(&self) -> char {
         if self.read_position >= self.input.len() {
             '\0'
@@ -180,7 +175,7 @@ impl Lexer {
         }
     }
 
-    // Read string identifier
+    /// Reads string identifier.
     fn read_identifier(&mut self) -> String {
         let position = self.position;
 
@@ -191,7 +186,7 @@ impl Lexer {
         String::from(&self.input[position..self.position])
     }
 
-    // Read number
+    /// Read number.
     fn read_number(&mut self) -> String {
         let position = self.position;
 
@@ -202,7 +197,7 @@ impl Lexer {
         String::from(&self.input[position..self.position])
     }
 
-    // Skip whitespace
+    /// Skips whitespace.
     fn skip_whitespace(&mut self) {
         while self.ch.is_whitespace() {
             self.read_char();
@@ -210,12 +205,12 @@ impl Lexer {
     }
 }
 
-// What constitutes a letter in an identifier
+/// Checks whether a character constitutes a letter in an identifier.
 fn is_letter(c: char) -> bool {
-    c.is_alphabetic() || c == '_'
+    c.is_ascii_alphabetic() || c == '_'
 }
 
-// What constitutes a digit in a number
+/// Checks whether character constitutes a digit in a number.
 fn is_digit(c: char) -> bool {
     c.is_ascii_digit()
 }
