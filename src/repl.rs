@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use crate::{lexer::Lexer, token::TokenType};
+use crate::{lexer::Lexer, parser::Parser};
 
 /// Runs the REPL.
 pub fn run() {
@@ -15,17 +15,15 @@ pub fn run() {
             break;
         }
 
-        let mut lexer = Lexer::new(line.clone());
+        let mut parser = Parser::new(Lexer::new(line.clone()));
 
-        loop {
-            let token = lexer.next_token();
+        let program = parser.parse_program();
 
-            if token.token_type == TokenType::EOF {
-                break;
-            }
-
-            print!("{:?}(\"{}\"), ", token.token_type, token.literal);
+        for error in parser.errors() {
+            println!("\t{error}");
         }
+
+        println!("{}", program);
         println!();
     }
 }

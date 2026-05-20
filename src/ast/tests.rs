@@ -1,4 +1,3 @@
-
 use crate::{
     ast::{Expression, Identifier, LetStatement, Program, Statement},
     token::{Token, TokenType},
@@ -19,13 +18,13 @@ fn test_string() {
                     literal: "myVar".to_string(),
                 },
             },
-            value: Some(Expression::Ident(Identifier {
+            value: Expression::Ident(Identifier {
                 token: Token {
                     token_type: TokenType::Ident,
                     literal: "anotherVar".to_string(),
                 },
                 value: "anotherVar".to_string(),
-            })),
+            }),
         })],
     };
 

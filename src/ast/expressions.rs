@@ -9,6 +9,7 @@ pub enum Expression {
     BooleanLiteral(BooleanLiteral),
     FunctionLiteral(FunctionLiteral),
     If(IfExpression),
+    Call(CallExpression),
     Prefix(PrefixExpression),
     Infix(InfixExpression),
 }
@@ -19,10 +20,11 @@ impl fmt::Display for Expression {
             Expression::Ident(ident) => write!(f, "{ident}"),
             Expression::IntegerLiteral(int_literal) => write!(f, "{int_literal}"),
             Expression::BooleanLiteral(bool_literal) => write!(f, "{bool_literal}"),
+            Expression::FunctionLiteral(fn_literal) => write!(f, "{fn_literal}"),
+            Expression::If(if_expression) => write!(f, "{if_expression}"),
+            Expression::Call(call_expression) => write!(f, "{call_expression}"),
             Expression::Prefix(prefix_expression) => write!(f, "{prefix_expression}"),
             Expression::Infix(infix_expression) => write!(f, "{infix_expression}"),
-            Expression::If(if_expression) => write!(f, "{if_expression}"),
-            Expression::FunctionLiteral(fn_literal) => write!(f, "{fn_literal}"),
         }
     }
 }
@@ -107,6 +109,30 @@ impl fmt::Display for IfExpression {
         if let Some(alt) = &self.alternative {
             write!(f, "else {}", alt)?;
         }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct CallExpression {
+    pub token: Token,
+    pub function: Box<Expression>,
+    pub arguments: Vec<Expression>,
+}
+
+impl fmt::Display for CallExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}({})",
+            self.function,
+            self.arguments
+                .iter()
+                .map(|expr| { expr.to_string() })
+                .collect::<Vec<_>>()
+                .join(", "),
+        )?;
 
         Ok(())
     }

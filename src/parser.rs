@@ -29,11 +29,12 @@ fn token_precedence(token_type: &TokenType) -> Precedence {
         TokenType::Lt | TokenType::Gt => Precedence::LessGreater,
         TokenType::Plus | TokenType::Minus => Precedence::Sum,
         TokenType::Slash | TokenType::Asterisk => Precedence::Product,
+        TokenType::Lparen => Precedence::Call,
         _ => Precedence::Lowest,
     }
 }
 
-struct Parser {
+pub struct Parser {
     lexer: Lexer,
     cur_token: Token,
     peek_token: Token,
@@ -43,7 +44,7 @@ struct Parser {
 }
 
 impl Parser {
-    fn new(mut lexer: Lexer) -> Parser {
+    pub fn new(mut lexer: Lexer) -> Parser {
         let cur_token = lexer.next_token();
         let peek_token = lexer.next_token();
 
@@ -74,28 +75,13 @@ impl Parser {
         parser.register_infix(TokenType::NotEq, Parser::parse_infix_expression);
         parser.register_infix(TokenType::Lt, Parser::parse_infix_expression);
         parser.register_infix(TokenType::Gt, Parser::parse_infix_expression);
+        parser.register_infix(TokenType::Lparen, Parser::parse_call_expression);
 
         parser
     }
 
-    fn register_prefix(&mut self, token_type: TokenType, func: PrefixParseFn) {
-        self.prefix_parse_fns.insert(token_type, func);
-    }
-
-    fn register_infix(&mut self, token_type: TokenType, func: InfixParseFn) {
-        self.infix_parse_fns.insert(token_type, func);
-    }
-
-    fn errors(&self) -> &Vec<String> {
-        &self.errors
-    }
-
-    fn next_token(&mut self) {
-        self.cur_token = self.peek_token.clone();
-        self.peek_token = self.lexer.next_token();
-    }
-
-    fn parse_program(&mut self) -> ast::Program {
+    /// Parses the program.
+    pub fn parse_program(&mut self) -> ast::Program {
         let mut program = ast::Program {
             statements: Vec::new(),
         };
@@ -108,6 +94,24 @@ impl Parser {
         }
 
         program
+    }
+
+    /// Gets the errors.
+    pub fn errors(&self) -> &Vec<String> {
+        &self.errors
+    }
+
+    fn register_prefix(&mut self, token_type: TokenType, func: PrefixParseFn) {
+        self.prefix_parse_fns.insert(token_type, func);
+    }
+
+    fn register_infix(&mut self, token_type: TokenType, func: InfixParseFn) {
+        self.infix_parse_fns.insert(token_type, func);
+    }
+
+    fn next_token(&mut self) {
+        self.cur_token = self.peek_token.clone();
+        self.peek_token = self.lexer.next_token();
     }
 
     fn parse_statement(&mut self) -> Option<ast::Statement> {
@@ -147,32 +151,36 @@ impl Parser {
             return None;
         }
 
-        while !self.cur_token_is(TokenType::Semicolon) {
+        self.next_token();
+
+        let value = self.parse_expression(Precedence::Lowest)?;
+
+        if self.peek_token_is(TokenType::Semicolon) {
             self.next_token();
         }
 
-        let let_statement = ast::LetStatement {
+        Some(ast::Statement::Let(ast::LetStatement {
             token,
             name,
-            value: None, // TODO remove dummy expression
-        };
-
-        Some(ast::Statement::Let(let_statement))
+            value,
+        }))
     }
 
     fn parse_return_statement(&mut self) -> Option<ast::Statement> {
-        let ret = ast::ReturnStatement {
-            token: self.cur_token.clone(),
-            return_value: None, // TODO - remove Dummy expression
-        };
+        let token = self.cur_token.clone();
 
         self.next_token();
+
+        let return_stmt = ast::Statement::Return(ast::ReturnStatement {
+            token,
+            return_value: self.parse_expression(Precedence::Lowest)?,
+        });
 
         while !self.cur_token_is(TokenType::Semicolon) {
             self.next_token();
         }
 
-        Some(ast::Statement::Return(ret))
+        Some(return_stmt)
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<ast::Expression> {
@@ -360,6 +368,39 @@ impl Parser {
         } else {
             exp
         }
+    }
+
+    fn parse_call_expression(&mut self, function: ast::Expression) -> Option<ast::Expression> {
+        Some(ast::Expression::Call(ast::CallExpression {
+            token: self.cur_token.clone(),
+            function: Box::new(function),
+            arguments: self.parse_call_arguments()?,
+        }))
+    }
+
+    fn parse_call_arguments(&mut self) -> Option<Vec<ast::Expression>> {
+        let mut args = Vec::new();
+
+        if self.peek_token_is(TokenType::Rparen) {
+            self.next_token();
+            return Some(args);
+        }
+
+        self.next_token();
+        args.push(self.parse_expression(Precedence::Lowest)?);
+
+        while self.peek_token_is(TokenType::Comma) {
+            self.next_token();
+            self.next_token();
+
+            args.push(self.parse_expression(Precedence::Lowest)?);
+        }
+
+        if !self.expect_peek(TokenType::Rparen) {
+            return None;
+        }
+
+        Some(args)
     }
 
     fn parse_prefix_expression(&mut self) -> Option<ast::Expression> {

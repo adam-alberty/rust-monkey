@@ -32,28 +32,28 @@ impl fmt::Display for Statement {
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
-    pub value: Option<Expression>,
+    pub value: Expression,
 }
 
 impl fmt::Display for LetStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(value) = &self.value {
-            write!(f, "{} {} = {};", self.token.literal, self.name.value, value)
-        } else {
-            write!(f, "{} {} = ;", self.token.literal, self.name.value)
-        }
+        write!(
+            f,
+            "{} {} = {};",
+            self.token.literal, self.name.value, self.value
+        )
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReturnStatement {
     pub token: Token,
-    pub return_value: Option<Expression>,
+    pub return_value: Expression,
 }
 
 impl fmt::Display for ReturnStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{};", self.token.literal) // TODO - add self.return_value
+        write!(f, "{} {};", self.token.literal, self.return_value)
     }
 }
 

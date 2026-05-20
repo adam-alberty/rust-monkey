@@ -4,44 +4,46 @@ use crate::{
     parser::Parser,
 };
 
-struct Test {
-    expected_identifier: &'static str,
-}
-
 #[test]
 fn test_let_statements() {
-    let input = String::from(
-        "
-let x = 5;
-let y = 10;
-let foobar = 838383;
-",
-    );
-
-    let mut parser = Parser::new(Lexer::new(input));
-    let program = parser.parse_program();
-
-    check_parser_errors(&parser);
-    check_number_of_statements(&program, 3);
+    struct Test {
+        input: &'static str,
+        expected_identifier: &'static str,
+        expected_value: ExpectedValue,
+    }
 
     let tests = [
         Test {
+            input: "let x = 5;",
             expected_identifier: "x",
+            expected_value: ExpectedValue::Int(5),
         },
         Test {
+            input: "let y = true;",
             expected_identifier: "y",
+            expected_value: ExpectedValue::Bool(true),
         },
         Test {
+            input: "let foobar = y;",
             expected_identifier: "foobar",
+            expected_value: ExpectedValue::Ident("y"),
         },
     ];
 
-    for (i, test) in tests.iter().enumerate() {
-        match &program.statements[i] {
+    for test in tests.iter() {
+        let mut parser = Parser::new(Lexer::new(test.input.to_string()));
+        let program = parser.parse_program();
+
+        check_parser_errors(&parser);
+        check_number_of_statements(&program, 1);
+
+        match &program.statements[0] {
             ast::Statement::Let(let_statement) => {
                 assert_eq!(let_statement.token.literal, "let");
                 assert_eq!(let_statement.name.value, test.expected_identifier);
                 assert_eq!(let_statement.name.token.literal, test.expected_identifier);
+
+                test_literal_expression(&let_statement.value, &test.expected_value);
             }
             _ => panic!("not a let statement"),
         };
@@ -378,6 +380,18 @@ fn test_operator_precedence_parsing() {
             input: "!(true == true)",
             expected: "(!(true == true))",
         },
+        Test {
+            input: "a + add(b * c) + d",
+            expected: "((a + add((b * c))) + d)",
+        },
+        Test {
+            input: "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+            expected: "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+        },
+        Test {
+            input: "add(a + b + c * d / f + g)",
+            expected: "add((((a + b) + ((c * d) / f)) + g))",
+        },
     ];
 
     for test in tests {
@@ -407,9 +421,9 @@ fn test_if_expression() {
 
                 test_infix_expression(
                     &if_expression.condition,
-                    ExpectedValue::Ident("x"),
+                    &ExpectedValue::Ident("x"),
                     "<",
-                    ExpectedValue::Ident("y"),
+                    &ExpectedValue::Ident("y"),
                 );
 
                 match &if_expression.consequence.statements[0] {
@@ -447,9 +461,9 @@ fn test_function_literal_parsing() {
                     ast::Statement::Expression(expression_statement) => {
                         test_infix_expression(
                             &expression_statement.expression,
-                            ExpectedValue::Ident("x"),
+                            &ExpectedValue::Ident("x"),
                             "+",
-                            ExpectedValue::Ident("y"),
+                            &ExpectedValue::Ident("y"),
                         );
                     }
                     _ => panic!("function body is not an expression statement"),
@@ -506,6 +520,42 @@ fn test_function_parameter_parsing() {
     }
 }
 
+#[test]
+fn test_call_expression_parsing() {
+    let input = "add(1, 2 * 3, 4 + 5);";
+
+    let mut parser = Parser::new(Lexer::new(input.to_string()));
+    let program = parser.parse_program();
+
+    check_parser_errors(&parser);
+    check_number_of_statements(&program, 1);
+
+    match &program.statements[0] {
+        ast::Statement::Expression(expr_statement) => match &expr_statement.expression {
+            ast::Expression::Call(call_expression) => {
+                assert_eq!(call_expression.arguments.len(), 3);
+                test_identifier(&call_expression.function, "add");
+
+                test_literal_expression(&call_expression.arguments[0], &ExpectedValue::Int(1));
+                test_infix_expression(
+                    &call_expression.arguments[1],
+                    &ExpectedValue::Int(2),
+                    "*",
+                    &ExpectedValue::Int(3),
+                );
+                test_infix_expression(
+                    &call_expression.arguments[2],
+                    &ExpectedValue::Int(4),
+                    "+",
+                    &ExpectedValue::Int(5),
+                );
+            }
+            _ => panic!("not a function call expression"),
+        },
+        _ => panic!("not an expression statement"),
+    };
+}
+
 fn test_identifier(expr: &ast::Expression, value: &str) {
     match expr {
         ast::Expression::Ident(ident) => {
@@ -525,27 +575,36 @@ fn test_integer_literal(expr: &ast::Expression, value: i64) {
     }
 }
 
+#[derive(Debug)]
 enum ExpectedValue {
     Int(i64),
     Ident(&'static str),
+    Bool(bool),
 }
 
-fn test_literal_expression(expr: &ast::Expression, expected: ExpectedValue) {
-    match expected {
-        ExpectedValue::Int(v) => {
-            test_integer_literal(expr, v);
+fn test_literal_expression(expr: &ast::Expression, expected: &ExpectedValue) {
+    match (expr, expected) {
+        (ast::Expression::IntegerLiteral(int_lit), ExpectedValue::Int(v)) => {
+            assert_eq!(int_lit.value, *v);
         }
-        ExpectedValue::Ident(v) => {
-            test_identifier(expr, v);
+
+        (ast::Expression::Ident(ident), ExpectedValue::Ident(v)) => {
+            assert_eq!(ident.value, *v);
         }
+
+        (ast::Expression::BooleanLiteral(bool_lit), ExpectedValue::Bool(v)) => {
+            assert_eq!(bool_lit.value, *v);
+        }
+
+        _ => panic!("mismatch expression vs expected value. expr={expr:?}, expected={expected:?}"),
     }
 }
 
 fn test_infix_expression(
     expr: &ast::Expression,
-    left: ExpectedValue,
+    left: &ExpectedValue,
     operator: &str,
-    right: ExpectedValue,
+    right: &ExpectedValue,
 ) {
     match expr {
         ast::Expression::Infix(infix) => {
