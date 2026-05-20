@@ -407,7 +407,45 @@ fn test_operator_precedence_parsing() {
     }
 }
 
-fn test_identifier(expr: &ast::Expression, value: String) {
+#[test]
+fn test_if_expression() {
+    let input = "if (x < y) { x }";
+
+    let mut parser = Parser::new(Lexer::new(input.to_string()));
+    let program = parser.parse_program();
+
+    println!("THIS IS THE PROGRAM>>>>> {}", program);
+
+    check_parser_errors(&parser);
+    check_number_of_statements(&program, 1);
+
+    match &program.statements[0] {
+        ast::Statement::Expression(expr_statement) => match &expr_statement.expression {
+            ast::Expression::If(if_expression) => {
+                assert_eq!(if_expression.consequence.statements.len(), 1);
+                assert!(if_expression.alternative.is_none());
+
+                test_infix_expression(
+                    &if_expression.condition,
+                    ExpectedValue::Ident("x"),
+                    "<",
+                    ExpectedValue::Ident("y"),
+                );
+
+                match &if_expression.consequence.statements[0] {
+                    ast::Statement::Expression(expression_statement) => {
+                        test_identifier(&expression_statement.expression, "x");
+                    }
+                    _ => panic!("not an expression statement"),
+                }
+            }
+            _ => panic!("not an if expression"),
+        },
+        _ => panic!("not an expression statement"),
+    };
+}
+
+fn test_identifier(expr: &ast::Expression, value: &str) {
     match expr {
         ast::Expression::Ident(ident) => {
             assert_eq!(value, ident.value);
@@ -423,5 +461,37 @@ fn test_integer_literal(expr: &ast::Expression, value: i64) {
             assert_eq!(value, integer_literal.value);
         }
         _ => panic!("not an integer literal. got={}", expr),
+    }
+}
+
+enum ExpectedValue {
+    Int(i64),
+    Ident(&'static str),
+}
+
+fn test_literal_expression(expr: &ast::Expression, expected: ExpectedValue) {
+    match expected {
+        ExpectedValue::Int(v) => {
+            test_integer_literal(expr, v);
+        }
+        ExpectedValue::Ident(v) => {
+            test_identifier(expr, v);
+        }
+    }
+}
+
+fn test_infix_expression(
+    expr: &ast::Expression,
+    left: ExpectedValue,
+    operator: &str,
+    right: ExpectedValue,
+) {
+    match expr {
+        ast::Expression::Infix(infix) => {
+            test_literal_expression(&infix.left, left);
+            assert_eq!(infix.operator, operator);
+            test_literal_expression(&infix.right, right);
+        }
+        _ => panic!("exp is not ast::Expression::Infix. got={expr:?}"),
     }
 }

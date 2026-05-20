@@ -58,13 +58,11 @@ impl Parser {
 
         parser.register_prefix(TokenType::Ident, Parser::parse_identifier);
         parser.register_prefix(TokenType::Int, Parser::parse_integer_literal);
-
+        parser.register_prefix(TokenType::If, Parser::parse_if_expression);
         parser.register_prefix(TokenType::Bang, Parser::parse_prefix_expression);
         parser.register_prefix(TokenType::Minus, Parser::parse_prefix_expression);
-
         parser.register_prefix(TokenType::True, Parser::parse_boolean);
         parser.register_prefix(TokenType::False, Parser::parse_boolean);
-
         parser.register_prefix(TokenType::Lparen, Parser::parse_grouped_expression);
 
         parser.register_infix(TokenType::Plus, Parser::parse_infix_expression);
@@ -238,6 +236,53 @@ impl Parser {
         }))
     }
 
+    fn parse_if_expression(&mut self) -> Option<ast::Expression> {
+        let token = self.cur_token.clone();
+
+        if !self.expect_peek(TokenType::Lparen) {
+            return None;
+        }
+
+        self.next_token();
+
+        let condition = self.parse_expression(Precedence::Lowest)?;
+
+        if !self.expect_peek(TokenType::Rparen) {
+            return None;
+        }
+
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        }
+
+        let consequence = self.parse_block_statement()?;
+
+        Some(ast::Expression::If(ast::IfExpression {
+            token,
+            condition: Box::new(condition),
+            consequence,
+            alternative: None,
+        }))
+    }
+
+    fn parse_block_statement(&mut self) -> Option<ast::BlockStatement> {
+        let mut block = ast::BlockStatement {
+            token: self.cur_token.clone(),
+            statements: Vec::new(),
+        };
+
+        self.next_token();
+
+        while !self.cur_token_is(TokenType::Rbrace) && !self.cur_token_is(TokenType::EOF) {
+            if let Some(statement) = self.parse_statement() {
+                block.statements.push(statement);
+            }
+            self.next_token();
+        }
+
+        Some(block)
+    }
+
     fn parse_grouped_expression(&mut self) -> Option<ast::Expression> {
         self.next_token();
 
@@ -255,12 +300,9 @@ impl Parser {
 
         self.next_token();
 
-        let right = match self.parse_expression(Precedence::Prefix) {
-            Some(expr) => expr,
-            None => return None, // propagate parse failure
-        };
+        let right = self.parse_expression(Precedence::Prefix)?;
 
-        Some(ast::Expression::Prefix(ast::Prefix {
+        Some(ast::Expression::Prefix(ast::PrefixExpression {
             token: token.clone(),
             operator: token.literal,
             right: Box::new(right),
@@ -274,7 +316,7 @@ impl Parser {
         self.next_token();
         let right = self.parse_expression(precedence)?;
 
-        Some(ast::Expression::Infix(ast::Infix {
+        Some(ast::Expression::Infix(ast::InfixExpression {
             token: token.clone(),
             left: Box::new(left),
             operator: token.literal,
