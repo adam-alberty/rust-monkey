@@ -1,5 +1,5 @@
-use rust_monkey::repl;
+use rust_monkey::cli;
 
 fn main() {
-    repl::run();
+    cli::main();
 }

@@ -7,9 +7,10 @@ pub enum Expression {
     Ident(Identifier),
     IntegerLiteral(IntegerLiteral),
     BooleanLiteral(BooleanLiteral),
+    FunctionLiteral(FunctionLiteral),
+    If(IfExpression),
     Prefix(PrefixExpression),
     Infix(InfixExpression),
-    If(IfExpression),
 }
 
 impl fmt::Display for Expression {
@@ -21,6 +22,7 @@ impl fmt::Display for Expression {
             Expression::Prefix(prefix_expression) => write!(f, "{prefix_expression}"),
             Expression::Infix(infix_expression) => write!(f, "{infix_expression}"),
             Expression::If(if_expression) => write!(f, "{if_expression}"),
+            Expression::FunctionLiteral(fn_literal) => write!(f, "{fn_literal}"),
         }
     }
 }
@@ -66,6 +68,51 @@ impl fmt::Display for BooleanLiteral {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub struct FunctionLiteral {
+    pub token: Token,
+    pub parameters: Vec<Identifier>,
+    pub body: BlockStatement,
+}
+
+impl fmt::Display for FunctionLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}({}) {}",
+            self.token.literal,
+            self.parameters
+                .iter()
+                .map(|ident| { ident.to_string() })
+                .collect::<Vec<_>>()
+                .join(", "),
+            self.body
+        )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct IfExpression {
+    pub token: Token,
+    pub condition: Box<Expression>,
+    pub consequence: BlockStatement,
+    pub alternative: Option<BlockStatement>,
+}
+
+impl fmt::Display for IfExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "if {} {}", self.condition, self.consequence)?;
+
+        if let Some(alt) = &self.alternative {
+            write!(f, "else {}", alt)?;
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct PrefixExpression {
     pub token: Token,
     pub operator: String,
@@ -89,25 +136,5 @@ pub struct InfixExpression {
 impl fmt::Display for InfixExpression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({} {} {})", self.left, self.operator, self.right)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct IfExpression {
-    pub token: Token,
-    pub condition: Box<Expression>,
-    pub consequence: BlockStatement,
-    pub alternative: Option<BlockStatement>,
-}
-
-impl fmt::Display for IfExpression {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "if {} {}", self.condition, self.consequence)?;
-
-        if let Some(alt) = &self.alternative {
-            write!(f, "else {}", alt)?;
-        }
-
-        Ok(())
     }
 }

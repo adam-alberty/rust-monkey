@@ -74,24 +74,6 @@ return 993322;
     }
 }
 
-fn check_number_of_statements(program: &Program, num_statements: usize) {
-    assert!(
-        program.statements.len() == num_statements,
-        "program does not contain {} statements. got={}",
-        num_statements,
-        program.statements.len()
-    );
-}
-
-fn check_parser_errors(parser: &Parser) {
-    assert!(
-        parser.errors().is_empty(),
-        "parser has {} errors: {}",
-        parser.errors().len(),
-        parser.errors().join("\n")
-    );
-}
-
 #[test]
 fn test_identifier_expression() {
     let input = String::from("foobar;");
@@ -414,8 +396,6 @@ fn test_if_expression() {
     let mut parser = Parser::new(Lexer::new(input.to_string()));
     let program = parser.parse_program();
 
-    println!("THIS IS THE PROGRAM>>>>> {}", program);
-
     check_parser_errors(&parser);
     check_number_of_statements(&program, 1);
 
@@ -443,6 +423,87 @@ fn test_if_expression() {
         },
         _ => panic!("not an expression statement"),
     };
+}
+
+#[test]
+fn test_function_literal_parsing() {
+    let input = "fn(x, y) { x + y; }";
+
+    let mut parser = Parser::new(Lexer::new(input.to_string()));
+    let program = parser.parse_program();
+
+    check_parser_errors(&parser);
+    check_number_of_statements(&program, 1);
+
+    match &program.statements[0] {
+        ast::Statement::Expression(expr_statement) => match &expr_statement.expression {
+            ast::Expression::FunctionLiteral(fn_literal) => {
+                assert_eq!(fn_literal.parameters.len(), 2);
+                assert_eq!(fn_literal.parameters[0].value, "x");
+                assert_eq!(fn_literal.parameters[1].value, "y");
+                assert_eq!(fn_literal.body.statements.len(), 1);
+
+                match &fn_literal.body.statements[0] {
+                    ast::Statement::Expression(expression_statement) => {
+                        test_infix_expression(
+                            &expression_statement.expression,
+                            ExpectedValue::Ident("x"),
+                            "+",
+                            ExpectedValue::Ident("y"),
+                        );
+                    }
+                    _ => panic!("function body is not an expression statement"),
+                }
+            }
+            _ => panic!("not a function literal expression"),
+        },
+        _ => panic!("not an expression statement"),
+    };
+}
+
+#[test]
+fn test_function_parameter_parsing() {
+    struct Test {
+        input: &'static str,
+        expected_params: &'static [&'static str],
+    }
+
+    let tests = [
+        Test {
+            input: "fn() {};",
+            expected_params: &[],
+        },
+        Test {
+            input: "fn(x) {};",
+            expected_params: &["x"],
+        },
+        Test {
+            input: "fn(x, y, z) {};",
+            expected_params: &["x", "y", "z"],
+        },
+    ];
+
+    for test in tests {
+        let mut parser = Parser::new(Lexer::new(test.input.to_string()));
+        let program = parser.parse_program();
+
+        check_parser_errors(&parser);
+        check_number_of_statements(&program, 1);
+
+        match &program.statements[0] {
+            ast::Statement::Expression(expr_statement) => match &expr_statement.expression {
+                ast::Expression::FunctionLiteral(fn_literal) => {
+                    assert_eq!(fn_literal.parameters.len(), test.expected_params.len());
+
+                    for (i, par) in test.expected_params.iter().enumerate() {
+                        assert_eq!(fn_literal.parameters[i].value, *par);
+                    }
+                }
+                _ => panic!("not a function literal expression"),
+            },
+            _ => panic!("not an expression statement"),
+        };
+    }
 }
 
 fn test_identifier(expr: &ast::Expression, value: &str) {
@@ -494,4 +555,22 @@ fn test_infix_expression(
         }
         _ => panic!("exp is not ast::Expression::Infix. got={expr:?}"),
     }
+}
+
+fn check_number_of_statements(program: &Program, num_statements: usize) {
+    assert!(
+        program.statements.len() == num_statements,
+        "program does not contain {} statements. got={}",
+        num_statements,
+        program.statements.len()
+    );
+}
+
+fn check_parser_errors(parser: &Parser) {
+    assert!(
+        parser.errors().is_empty(),
+        "parser has {} errors: {}",
+        parser.errors().len(),
+        parser.errors().join("\n")
+    );
 }

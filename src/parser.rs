@@ -64,6 +64,7 @@ impl Parser {
         parser.register_prefix(TokenType::True, Parser::parse_boolean);
         parser.register_prefix(TokenType::False, Parser::parse_boolean);
         parser.register_prefix(TokenType::Lparen, Parser::parse_grouped_expression);
+        parser.register_prefix(TokenType::Function, Parser::parse_function_literal);
 
         parser.register_infix(TokenType::Plus, Parser::parse_infix_expression);
         parser.register_infix(TokenType::Minus, Parser::parse_infix_expression);
@@ -257,11 +258,23 @@ impl Parser {
 
         let consequence = self.parse_block_statement()?;
 
+        let mut alternative = None;
+
+        if self.peek_token_is(TokenType::Else) {
+            self.next_token();
+
+            if !self.expect_peek(TokenType::Lbrace) {
+                return None;
+            }
+
+            alternative = Some(self.parse_block_statement()?);
+        }
+
         Some(ast::Expression::If(ast::IfExpression {
             token,
             condition: Box::new(condition),
             consequence,
-            alternative: None,
+            alternative,
         }))
     }
 
@@ -281,6 +294,60 @@ impl Parser {
         }
 
         Some(block)
+    }
+
+    fn parse_function_literal(&mut self) -> Option<ast::Expression> {
+        let token = self.cur_token.clone();
+
+        if !self.expect_peek(TokenType::Lparen) {
+            return None;
+        };
+
+        let parameters = self.parse_function_parameters()?;
+
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        };
+
+        let body = self.parse_block_statement()?;
+
+        Some(ast::Expression::FunctionLiteral(ast::FunctionLiteral {
+            token,
+            parameters,
+            body,
+        }))
+    }
+
+    fn parse_function_parameters(&mut self) -> Option<Vec<ast::Identifier>> {
+        let mut identifiers = Vec::new();
+
+        if self.peek_token_is(TokenType::Rparen) {
+            self.next_token();
+            return Some(identifiers);
+        }
+
+        self.next_token();
+
+        identifiers.push(ast::Identifier {
+            token: self.cur_token.clone(),
+            value: self.cur_token.literal.clone(),
+        });
+
+        while self.peek_token_is(TokenType::Comma) {
+            self.next_token();
+            self.next_token();
+
+            identifiers.push(ast::Identifier {
+                token: self.cur_token.clone(),
+                value: self.cur_token.literal.clone(),
+            });
+        }
+
+        if !self.expect_peek(TokenType::Rparen) {
+            return None;
+        }
+
+        Some(identifiers)
     }
 
     fn parse_grouped_expression(&mut self) -> Option<ast::Expression> {
