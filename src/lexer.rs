@@ -182,7 +182,7 @@ impl Lexer {
     fn read_identifier(&mut self) -> String {
         let position = self.position;
 
-        while is_letter(char::from(self.ch)) {
+        while is_letter(self.ch) {
             self.read_char();
         }
 

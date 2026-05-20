@@ -49,9 +49,9 @@ impl Parser {
         let peek_token = lexer.next_token();
 
         let mut parser = Parser {
-            lexer: lexer,
-            cur_token: cur_token,
-            peek_token: peek_token,
+            lexer,
+            cur_token,
+            peek_token,
             errors: Vec::new(),
             prefix_parse_fns: HashMap::new(),
             infix_parse_fns: HashMap::new(),
